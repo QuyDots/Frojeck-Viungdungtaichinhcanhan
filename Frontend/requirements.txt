@@ -1,0 +1,11 @@
+"""Deprecated.
+
+Frontend hiện sử dụng Vite + Node.js; không cần dependency Python.
+Giữ file này chỉ để tài liệu cũ không bị lỗi đường dẫn.
+
+Để chạy UI mới:
+
+	cd Frontend
+	npm install   # lần đầu
+	npm run dev   # khởi động
+"""

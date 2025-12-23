@@ -1,0 +1,4 @@
+[
+  { "owner": "demo", "amount": 500, "category": "Lương", "note": "Tháng 12", "timestamp": 1733356800, "isIncome": true },
+  { "owner": "demo", "amount": 200, "category": "Ăn uống", "note": "Cafe", "timestamp": 1733443200, "isIncome": false }
+]

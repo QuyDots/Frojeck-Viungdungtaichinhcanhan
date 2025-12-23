@@ -1,0 +1,43 @@
+<div id="add" class="tab-content">
+  <div class="card">
+    <h2>Tạo giao dịch mới</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>👤 Người gửi</label>
+        <input type="text" id="sender" placeholder="Ví dụ: alice">
+      </div>
+      <div class="form-group">
+        <label>👤 Người nhận</label>
+        <div class="input-row">
+          <input type="text" id="recipient" placeholder="Ví dụ: bob hoặc địa chỉ ví">
+          <button type="button" id="fillWalletBtn" class="btn btn-secondary" onclick="fillRecipientWithWallet()">Dùng địa chỉ ví</button>
+        </div>
+        <small id="recipientHint" class="field-hint">Có thể nhập tên hoặc địa chỉ ví bất kỳ.</small>
+        <div id="recipientWalletNote" style="font-size:12px;color:#666;margin-top:6px">&nbsp;</div>
+      </div>
+      <div class="form-group">
+        <label>💵 Số tiền</label>
+        <input type="number" id="amount" placeholder="100" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>📝 Nội dung</label>
+        <textarea id="desc" placeholder="Ghi chú giao dịch (ví dụ: Mua cà phê, Tiền lương...)" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center"><input type="checkbox" id="signWithWallet" style="margin-right:8px"> Ghi vào ví cá nhân (ký bằng MetaMask)</label>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center"><input type="checkbox" id="sendEthCheckbox" style="margin-right:8px"> Gửi ETH thực tới địa chỉ `Người nhận`</label>
+        <small class="field-hint">Chọn nếu muốn gửi ETH thật tới địa chỉ người nhận (ví phải có ETH).</small>
+      </div>
+      <div class="form-group">
+        <label>🔗 Gửi on-chain</label>
+        <label style="display:flex;align-items:center"><input type="checkbox" id="onchainToggle" style="margin-right:8px" onchange="onchainToggleChanged(this.checked)"> Ghi lên blockchain</label>
+      </div>
+      <div class="form-group" style="justify-content: flex-end;">
+        <button class="btn btn-primary" onclick="addTransaction()" style="align-self: flex-start;">Gửi giao dịch</button>
+      </div>
+    </div>
+    <div id="addStatus"></div>
+  </div>
+</div>

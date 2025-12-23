@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceChain - Giao dịch Blockchain</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="src/styles/main.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="header-top">
+        <div>
+          <h1>💰 FinanceChain</h1>
+          <p style="font-size: 13px; opacity: 0.9;">Giao dịch blockchain an toàn và minh bạch</p>
+        </div>
+        <div class="header-controls">
+          <div id="connectWalletRoot" style="display:inline-block;margin-right:8px"></div>
+          <button class="toggle-btn" onclick="toggleDarkMode()">🌙 Dark Mode</button>
+          <button class="toggle-btn" onclick="loadData()">🔄 Làm mới</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Tổng giao dịch</div>
+          <div class="stat-value" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Số block</div>
+          <div class="stat-value" id="statBlocks">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Trạng thái</div>
+          <div class="stat-value" id="statStatus" style="font-size: 14px; color: var(--success);">🟢 Online</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+        <button class="tab" onclick="switchTab('transactions')">💳 Giao dịch</button>
+        <button class="tab" onclick="switchTab('blocks')">🔗 Blockchain</button>
+        <button class="tab" onclick="switchTab('add')">➕ Thêm mới</button>
+      </div>
+
+      <!-- Pages will be loaded here -->
+      <div id="pages"></div>
+    </div>
+
+    <footer>
+      <p>FinanceChain © 2025 | Backend: http://127.0.0.1:5000 | Frontend: Vite + Vanilla JS</p>
+    </footer>
+  </div>
+
+  <script type="module">
+    import { 
+      toggleDarkMode, 
+      initDarkMode, 
+      switchTab, 
+      loadData,
+      addTransaction,
+      fillRecipientWithWallet,
+      onchainToggleChanged
+    } from './src/utils/ui.js';
+
+    // Make functions global
+    window.toggleDarkMode = toggleDarkMode;
+    window.switchTab = switchTab;
+    window.loadData = loadData;
+    window.addTransaction = addTransaction;
+    window.fillRecipientWithWallet = fillRecipientWithWallet;
+    window.onchainToggleChanged = onchainToggleChanged;
+
+    // Load pages
+    async function loadPages() {
+      const pagesContainer = document.getElementById('pages');
+      
+      const pages = ['dashboard', 'transactions', 'blocks', 'add'];
+      const pageContents = await Promise.all(
+        pages.map(page => 
+          fetch(`src/pages/${page}.html`).then(r => r.text())
+        )
+      );
+
+      pagesContainer.innerHTML = pageContents.join('\n');
+    }
+
+    // Initialize
+    initDarkMode();
+    loadPages();
+    loadData();
+
+    // Mount connect-wallet component (header)
+    import('/src/components/connect-wallet.js').then(mod=>{
+      const root = document.getElementById('connectWalletRoot')
+      if(root) mod.mount(root)
+      // also expose wallet helper globally for other scripts
+      import('/src/utils/wallet.js').then(w=>{ window.wallet = w }).catch(()=>{})
+    }).catch(e=>{ console.warn('connect-wallet component load failed', e) })
+    // OPTIONAL: set deployed PersonalFinance contract address here for on-chain mode
+    // Ưu tiên lấy từ biến môi trường Vite nếu có (Frontend/.env)
+    const envContract = import.meta.env && import.meta.env.VITE_PERSONAL_FINANCE_CONTRACT;
+    if (envContract) {
+      window.PERSONAL_FINANCE_CONTRACT = envContract;
+    }
+    // Hoặc bạn có thể set tay nếu muốn override:
+    // window.PERSONAL_FINANCE_CONTRACT = '0x...dia_chi_contract...';
+  </script>
+</body>
+</html>

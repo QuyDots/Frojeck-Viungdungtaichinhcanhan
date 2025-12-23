@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Thêm giao dịch</h5>
+    <form id="txForm" onsubmit="submitTx(event)">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Số tiền</label>
+          <input type="number" step="0.01" name="amount" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Loại</label>
+          <select name="type" class="form-select">
+            <option value="income">Thu</option>
+            <option value="expense">Chi</option>
+          </select>
+        </div>
+        <script>
+          async function submitTx(e){
+            e.preventDefault();
+            const form = document.getElementById('txForm');
+            const amount = parseFloat(form.amount.value);
+            const isIncome = form.type.value === 'income';
+            const category = form.category.value;
+            const note = form.note.value || '';
+            // Lấy owner từ ví nếu đã kết nối, tạm thời demo dùng địa chỉ giả
+            const ownerSpan = document.getElementById('walletAddr');
+            const owner = ownerSpan && ownerSpan.textContent && ownerSpan.textContent !== '(chưa kết nối)'
+              ? ownerSpan.textContent.trim()
+              : '0xDEMO';
+
+            try {
+              const res = await fetch('http://127.0.0.1:5000/api/transactions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount, category, note, isIncome, owner })
+              });
+              if(!res.ok){
+                const err = await res.json().catch(()=>({error:'Lỗi không xác định'}));
+                alert('Ghi nhận thất bại: ' + (err.error || res.statusText));
+                return;
+              }
+              const data = await res.json();
+              alert('Đã ghi nhận giao dịch. Block: ' + (data.mined_in_block ?? 'N/A'));
+              window.location.href = '{{ url_for("history") }}';
+            } catch (ex){
+              console.error(ex);
+              alert('Lỗi kết nối API Backend');
+            }
+          }
+        </script>
+        
+        
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+ 
+{% endblock %}
+
+

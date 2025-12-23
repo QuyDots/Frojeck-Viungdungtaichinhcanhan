@@ -1,0 +1,52 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        { "internalType": "uint256", "name": "_amount", "type": "uint256" },
+        { "internalType": "string", "name": "_category", "type": "string" },
+        { "internalType": "string", "name": "_note", "type": "string" },
+        { "internalType": "bool", "name": "_isIncome", "type": "bool" }
+      ],
+      "name": "addTransaction",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getMyTransactions",
+      "outputs": [
+        {
+          "components": [
+            { "internalType": "uint256", "name": "id", "type": "uint256" },
+            { "internalType": "address", "name": "owner", "type": "address" },
+            { "internalType": "uint256", "name": "amount", "type": "uint256" },
+            { "internalType": "string", "name": "category", "type": "string" },
+            { "internalType": "string", "name": "note", "type": "string" },
+            { "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+            { "internalType": "bool", "name": "isIncome", "type": "bool" }
+          ],
+          "internalType": "struct PersonalFinance.Transaction[]",
+          "name": "",
+          "type": "tuple[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+        { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
+        { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+        { "indexed": false, "internalType": "string", "name": "category", "type": "string" },
+        { "indexed": false, "internalType": "string", "name": "note", "type": "string" },
+        { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" },
+        { "indexed": false, "internalType": "bool", "name": "isIncome", "type": "bool" }
+      ],
+      "name": "TransactionAdded",
+      "type": "event"
+    }
+  ]
+}

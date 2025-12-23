@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ví — Giao diện đối thoại</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+  <style>
+    :root{--bg:#f6f8fa;--me:#0b93f6;--bot:#e5e5ea;--text:#222}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); padding:20px}
+    .chat-wrap{max-width:720px;margin:0 auto;background:#fff;border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(20,20,40,0.06)}
+    .chat-log{height:60vh;overflow:auto;padding:12px;border-radius:8px;background:#fbfdff;border:1px solid #eef2f6}
+    .msg{display:flex;margin:8px 0}
+    .msg.me{justify-content:flex-end}
+    .bubble{max-width:72%;padding:10px 12px;border-radius:14px;color:var(--text);line-height:1.35}
+    .bubble.me{background:var(--me);color:#fff;border-bottom-right-radius:4px}
+    .bubble.bot{background:var(--bot);color:#111;border-bottom-left-radius:4px}
+    .input-row{display:flex;gap:8px;margin-top:12px}
+    .input-row input[type=text]{flex:1;padding:10px;border-radius:8px;border:1px solid #dfe7ee}
+    .input-row button{padding:10px 14px;border-radius:8px;border:none;background:#0069ff;color:#fff}
+    .quick-buttons{display:flex;gap:6px;margin-top:8px}
+    .quick-buttons button{background:#f1f5f9;border:1px solid #e2e8f0;padding:6px 8px;border-radius:6px}
+    .muted{color:#6b7280;font-size:0.9rem}
+  </style>
+</head>
+<body>
+  <div class="chat-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h2 style="margin:0">Giao diện đối thoại — Ghi chép chi tiêu</h2>
+      <div>
+        <div id="connectWalletRoot" style="display:inline-block;margin-right:8px"></div>
+        <button id="saveOnchainBtn" type="button">Ghi hash on-chain</button>
+      </div>
+    </div>
+    <div class="chat-log" id="chatLog" aria-live="polite"></div>
+
+    <div class="quick-buttons" id="quick"></div>
+
+    <form id="chatForm" class="input-row" onsubmit="return false;">
+      <input id="chatInput" type="text" placeholder="Gõ tin nhắn... (ví dụ: Chi 200 để mua cà phê)" autocomplete="off" />
+      <button id="sendBtn">Gửi</button>
+    </form>
+    <div class="muted">Lưu ý: demo này gửi dữ liệu vào POST /api/transactions.</div>
+  </div>
+
+  <script type="module">
+    const apiBase = '/api'
+    const chatLog = document.getElementById('chatLog')
+    const chatInput = document.getElementById('chatInput')
+    const sendBtn = document.getElementById('sendBtn')
+    const quick = document.getElementById('quick')
+
+    function appendMsg(text, who='bot'){
+      const el = document.createElement('div')
+      el.className = 'msg ' + (who==='me' ? 'me' : 'bot')
+      const bubble = document.createElement('div')
+      bubble.className = 'bubble ' + (who==='me' ? 'me' : 'bot')
+      bubble.textContent = text
+      el.appendChild(bubble)
+      chatLog.appendChild(el)
+      chatLog.scrollTop = chatLog.scrollHeight
+      return el
+    }
+
+    function botReply(text, delay=600){
+      return new Promise(res=>{
+        setTimeout(()=>{ appendMsg(text,'bot'); res(); }, delay)
+      })
+    }
+
+    function parseMessage(text){
+      text = text.trim()
+      const parts = text.split(/\s+/)
+      let type = null, amount = null, party = '', note = ''
+      const first = parts[0].toLowerCase()
+      if(first.startsWith('chi')) type = 'expense'
+      else if(first.startsWith('thu')) type = 'income'
+      else if(first.startsWith('chuy')) type = 'transfer'
+      for(const p of parts){ const n = Number(p.replace(/[^0-9.-]/g,'')); if(!isNaN(n) && n !== 0){ amount = n; break } }
+      if(amount !== null){ const idx = parts.findIndex(p=>p.includes(String(amount))); const rest = parts.slice(idx+1).join(' '); note = rest } else { note = parts.slice(1).join(' ') }
+      return {type, amount, note}
+    }
+
+    let state = {step:'start', draft:{}}
+
+    async function startConversation(){ await botReply('Chào bạn — tôi là trợ lý ví. Bạn muốn ghi "chi tiêu", "thu nhập" hay "chuyển khoản"?'); quickButtons(['Chi tiêu','Thu nhập','Chuyển khoản']) }
+
+    function quickButtons(arr){ quick.innerHTML=''; for(const t of arr){ const b=document.createElement('button'); b.type='button'; b.textContent=t; b.addEventListener('click', ()=>onQuick(t)); quick.appendChild(b) } }
+    function onQuick(text){ chatInput.value = text; handleSend() }
+
+    async function handleSend(){
+      const text = chatInput.value.trim(); if(!text) return; appendMsg(text,'me'); chatInput.value=''
+      const parsed = parseMessage(text)
+      if(state.step === 'start'){
+        if(parsed.type && parsed.amount){ state.draft = {type: parsed.type, amount: parsed.amount, note: parsed.note}; await botReply(`Ghi ${state.draft.type} ${state.draft.amount} - ${state.draft.note || 'không mô tả'}. Xác nhận? (gõ yes hoặc nhấn Xác nhận)`); quickButtons(['Xác nhận','Hủy']); state.step='confirm'; return }
+        const lower = text.toLowerCase(); if(lower.includes('chi')) state.draft.type='expense'; else if(lower.includes('thu')) state.draft.type='income'; else if(lower.includes('chuy')) state.draft.type='transfer'
+        if(!state.draft.type){ await botReply('Mình chưa hiểu. Bạn có thể gõ "Chi 200 cà phê" hoặc chọn nút.'); quickButtons(['Chi 200','Thu 1000']); return }
+        await botReply('OK. Bạn nhập số tiền (ví dụ: 200000)'); state.step='amount'; return
+      }
+      if(state.step === 'amount'){ const n = Number(text.replace(/[^0-9.-]/g,'')); if(isNaN(n)||n<=0){ await botReply('Số tiền không hợp lệ, nhập lại'); return } state.draft.amount=n; await botReply('Bạn muốn ghi chú gì cho giao dịch này? (gõ \"-\" nếu không cần)'); state.step='note'; return }
+      if(state.step === 'note'){ state.draft.note = text==='-'? '': text; await botReply(`Xác nhận: ${state.draft.type} ${state.draft.amount} - ${state.draft.note || 'không mô tả'}?`); quickButtons(['Xác nhận','Sửa','Hủy']); state.step='confirm'; return }
+      if(state.step === 'confirm'){ const lower=text.toLowerCase(); if(lower.startsWith('x')||lower.startsWith('yes')||lower.startsWith('y')){ await botReply('Đang gửi giao dịch...'); await createTransactionFromDraft(); state={step:'start',draft:{}}; quickButtons([]); await botReply('Bạn muốn ghi thêm giao dịch khác không? (chọn hoặc gõ)'); quickButtons(['Chi tiêu','Thu nhập','Chuyển khoản']); return } if(lower.startsWith('s')){ await botReply('Bạn muốn sửa phần nào? (type/amount/note)'); state.step='edit'; return } if(lower.startsWith('h')){ state={step:'start',draft:{}}; await botReply('Hủy thao tác. Bạn muốn làm gì tiếp?'); quickButtons(['Chi tiêu','Thu nhập','Chuyển khoản']); return } }
+      if(state.step === 'edit'){ const lower=text.toLowerCase(); if(lower.includes('type')){ state.step='start'; await botReply('OK, chọn lại loại.'); quickButtons(['Chi tiêu','Thu nhập','Chuyển khoản']); return } if(lower.includes('amount')){ state.step='amount'; await botReply('Nhập số tiền mới'); return } if(lower.includes('note')){ state.step='note'; await botReply('Nhập ghi chú mới'); return } await botReply('Chưa hiểu, nhập type/amount/note để sửa'); return }
+      await botReply('Mình chưa hiểu — thử nhập "Chi 200 cà phê" hoặc chọn nút.')
+    }
+
+    async function createTransactionFromDraft(){
+      const d = state.draft
+      let sender='', recipient=''
+      if(d.type==='expense'){ sender=d.note||'Bạn'; recipient='Expense' }
+      else if(d.type==='income'){ sender='Income'; recipient=d.note||'Bạn' }
+      else { sender=d.note||'You'; recipient=d.note||'You' }
+      const timestamp = Math.floor(Date.now()/1000)
+      const messageObj = { sender, recipient, amount: d.amount, note: d.note||'', timestamp }
+      const message = JSON.stringify(messageObj)
+      try{
+        let signature=null, address=null
+        if(window.wallet && window.wallet.signMessage){ try{ signature = await window.wallet.signMessage(message); address = await window.wallet.getAddress() }catch(e){ console.warn('sign failed', e) } }
+        const body = Object.assign({}, messageObj, { message, signature, address })
+        const res = await fetch(apiBase + '/transactions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
+        const json = await res.json()
+        if(res.ok && json.ok){ await botReply('Giao dịch đã được lưu và ghi vào block ✅'); appendMsg('Giao dịch thành công','me') } else { await botReply('Lỗi khi lưu: ' + (json.error || 'Không thành công')) }
+      }catch(err){ await botReply('Lỗi mạng: ' + err.message) }
+    }
+
+    sendBtn.addEventListener('click', handleSend)
+    chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); handleSend() } })
+
+    import('/src/components/connect-wallet.js').then(mod=>{ const root=document.getElementById('connectWalletRoot'); mod.mount(root); import('/src/utils/wallet.js').then(w=>{ window.wallet = w }).catch(()=>{}) }).catch(e=>{ console.warn('connect-wallet component load failed', e) })
+
+    import('/src/utils/onchain.js').then(oc=>{
+      const onchainBtn = document.getElementById('saveOnchainBtn')
+      onchainBtn.addEventListener('click', async ()=>{
+        const msg = prompt('Nhập nội dung muốn lưu proof (ví dụ: giao dịch id hoặc JSON)')
+        if(!msg) return
+        try{
+          const contractAddress = prompt('Nhập địa chỉ contract (deploy trước bằng Hardhat).')
+          if(!contractAddress) { alert('Cần địa chỉ contract'); return }
+          const res = await oc.saveHashOnChain(contractAddress, msg)
+          alert('Saved on-chain tx: ' + res.txHash)
+        }catch(e){ alert('Lỗi khi ghi on-chain: ' + e.message) }
+      })
+    }).catch(e=>{ console.warn('onchain module load failed', e) })
+
+    startConversation()
+  </script>
+</body>
+</html>

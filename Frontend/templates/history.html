@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block content %}
+<h5 class="mb-3">Lịch sử giao dịch</h5>
+<div class="row mb-3">
+  <div class="col-md-3">
+    <select class="form-select">
+      <option>Tất cả danh mục</option>
+      <option>Ăn uống</option>
+      <option>Lương</option>
+      <option>Mua sắm</option>
+    </select>
+  </div>
+  <div class="col-md-3">
+    <input type="month" class="form-control">
+  </div>
+  <div class="col-md-3">
+    <button class="btn btn-outline-primary w-100">Lọc</button>
+  </div>
+</div>
+
+<ul class="list-group" id="txList">
+  <!-- Nội dung sẽ được render bằng JS từ /api/transactions -->
+ </ul>
+<script>
+  // Tải thêm từ Backend để đồng bộ dữ liệu mới
+  (async function load(){
+    try{
+      const res = await fetch('http://127.0.0.1:5000/api/transactions');
+      const data = await res.json();
+      const chain = Array.isArray(data.chain) ? data.chain : [];
+      const ul = document.getElementById('txList');
+      ul.innerHTML = '';
+
+      const shortAddr = (addr) => {
+        if (!addr || typeof addr !== 'string') return '';
+        return addr.length > 14 ? addr.slice(0, 8) + '...' + addr.slice(-6) : addr;
+      };
+
+      for (const block of chain) {
+        const ts = block.timestamp ? new Date(block.timestamp * 1000).toLocaleString('vi-VN') : '';
+        const header = document.createElement('li');
+        header.className = 'list-group-item active';
+        header.innerHTML = `<strong>Block #${block.index ?? ''}</strong> <span class="ms-2 small">${ts}</span> <span class="badge bg-light text-dark ms-2">${(block.transactions || []).length} TX</span>`;
+        ul.appendChild(header);
+
+        for (const tx of (block.transactions || [])) {
+          const onchain = tx.onchain || {};
+          const amount = tx.amount ?? '';
+          const sender = tx.sender ?? '';
+          const recipient = tx.recipient ?? '';
+          const hash = tx.hash;
+
+          let hashHtml = '';
+          if (hash) {
+            const isSepolia = onchain.chainId === '11155111' || onchain.chainId === 11155111;
+            const explorer = isSepolia ? `https://sepolia.etherscan.io/tx/${hash}` : null;
+            const label = `${hash.slice(0, 10)}...${hash.slice(-6)}`;
+            hashHtml = explorer
+              ? `<div class="text-muted small">Hash: <a href="${explorer}" target="_blank" rel="noopener">${label}</a></div>`
+              : `<div class="text-muted small">Hash: <span>${label}</span></div>`;
+          }
+
+          let metaHtml = '';
+          if (onchain.from || onchain.to) {
+            metaHtml += `<div class="text-muted small">From: ${shortAddr(onchain.from)} → To: ${shortAddr(onchain.to)}</div>`;
+          }
+          if (onchain.gasUsed || onchain.gasPrice || onchain.value) {
+            const gasUsed = onchain.gasUsed ?? '?';
+            const gasPrice = onchain.gasPrice ?? '';
+            const value = onchain.value ?? '0';
+            metaHtml += `<div class="text-muted small">Gas used: ${gasUsed}${gasPrice ? ' • Gas price: ' + gasPrice : ''} • Value: ${value} wei</div>`;
+          }
+
+          const li = document.createElement('li');
+          li.className = 'list-group-item d-flex justify-content-between align-items-center';
+          li.innerHTML = `
+            <div>
+              <strong>${sender} → ${recipient}</strong>
+              <div class="text-muted small">Block #${block.index ?? ''}</div>
+              ${hashHtml}
+              ${metaHtml}
+            </div>
+            <span class="badge rounded-pill bg-primary">
+              ${amount}
+            </span>`;
+          ul.appendChild(li);
+        }
+      }
+    }catch(e){ console.error(e); }
+  })();
+ </script>
+{% endblock %}

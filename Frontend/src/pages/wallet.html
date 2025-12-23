@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ví cá nhân — Giao dịch</title>
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div class="container">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1>Ví cá nhân</h1>
+      <div id="connectWalletRoot"></div>
+    </div>
+
+    <section id="balance">
+      <h2>Số dư hiện tại</h2>
+      <div class="balance-amount">---</div>
+    </section>
+
+    <section id="new-transaction">
+      <h2>Thêm giao dịch</h2>
+      <form id="tx-form">
+        <label>Loại
+          <select id="tx-type">
+            <option value="expense">Chi tiêu</option>
+            <option value="income">Thu nhập</option>
+            <option value="transfer">Chuyển tiền</option>
+          </select>
+        </label>
+        <label>Người gửi / Người nhận
+          <input id="tx-party" type="text" placeholder="ví dụ: Tiền mặt, ATM, Alice" required />
+        </label>
+        <label>Số tiền
+          <input id="tx-amount" type="number" step="0.01" required />
+        </label>
+        <label>Ghi chú
+          <input id="tx-note" type="text" />
+        </label>
+        <button type="submit">Gửi</button>
+      </form>
+      <div id="tx-result" class="muted"></div>
+    </section>
+
+    <section id="transactions-list">
+      <h2>Giao dịch gần đây</h2>
+      <table>
+        <thead><tr><th>Thời gian</th><th>Loại</th><th>Mô tả</th><th>Số tiền</th></tr></thead>
+        <tbody id="tx-rows"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script type="module">
+    const apiBase = '/api'
+
+    function fmtCurrency(v){
+      return (Number(v)||0).toLocaleString('vi-VN', {style:'currency', currency:'VND'});
+    }
+
+    async function loadData(){
+      try{
+        const res = await fetch(apiBase + '/transactions')
+        if(!res.ok) throw new Error('Không lấy được dữ liệu')
+        const data = await res.json()
+        const pending = data.current || []
+        const chain = data.chain || []
+
+        let balance = 0
+        for(const b of chain){
+          for(const t of (b.transactions||[])){
+            if(t.recipient) balance += Number(t.amount||0)
+            if(t.sender) balance -= Number(t.amount||0)
+          }
+        }
+
+        document.querySelector('.balance-amount').textContent = fmtCurrency(balance)
+
+        const rows = document.getElementById('tx-rows')
+        rows.innerHTML = ''
+        const mined = []
+        for(const b of chain.slice().reverse()){
+          for(const t of (b.transactions||[])) mined.push({time: b.timestamp, type: 'mined', data: t})
+        }
+        for(const t of pending) mined.unshift({time: t.created_at||Date.now()/1000, type: 'pending', data: t})
+
+        for(const item of mined.slice(0,50)){
+          const tr = document.createElement('tr')
+          const dt = new Date((item.time||Date.now())*1000)
+          tr.innerHTML = `<td>${dt.toLocaleString('vi-VN')}</td><td>${item.type}</td><td>${item.data.sender||''} → ${item.data.recipient||''} ${item.data.note?'- '+item.data.note:''}</td><td style="text-align:right">${fmtCurrency(item.data.amount)}</td>`
+          rows.appendChild(tr)
+        }
+
+      }catch(e){ console.error(e) }
+    }
+
+    document.getElementById('tx-form').addEventListener('submit', async (ev)=>{
+      ev.preventDefault()
+      const type = document.getElementById('tx-type').value
+      const party = document.getElementById('tx-party').value
+      const amount = Number(document.getElementById('tx-amount').value)
+      const note = document.getElementById('tx-note').value
+
+      let sender = ''
+      let recipient = ''
+      if(type === 'expense'){ sender = party; recipient = 'Expense' }
+      else if(type === 'income'){ sender = 'Income'; recipient = party }
+      else { sender = party; recipient = party }
+
+      const timestamp = Math.floor(Date.now()/1000)
+      const payload = { sender, recipient, amount, note, timestamp }
+      const resultEl = document.getElementById('tx-result')
+      resultEl.textContent = 'Đang gửi...'
+      try{
+        let signature = null
+        let address = null
+        if(window.wallet && window.wallet.signMessage){
+          try{ signature = await window.wallet.signMessage(JSON.stringify(payload)); address = await window.wallet.getAddress(); }catch(e){ console.warn('wallet sign failed', e) }
+        }
+        const body = Object.assign({}, payload, { signature, address })
+        const res = await fetch(apiBase + '/transactions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
+        const json = await res.json()
+        if(res.ok && json.ok){ resultEl.textContent = 'Giao dịch đã được lưu và được ghi vào block.'; document.getElementById('tx-form').reset(); await loadData() }
+        else resultEl.textContent = 'Lỗi: ' + (json.error||'Không thành công')
+      }catch(err){ resultEl.textContent = 'Lỗi khi gửi: ' + err.message }
+    })
+
+    // wallet component hookup
+    import('/src/components/connect-wallet.js').then(mod=>{
+      const root = document.getElementById('connectWalletRoot')
+      mod.mount(root)
+      import('/src/utils/wallet.js').then(w=>{ window.wallet = w }).catch(()=>{})
+    }).catch(e=>console.warn('connect-wallet component load failed', e))
+
+    loadData(); setInterval(loadData, 5000)
+  </script>
+</body>
+</html>

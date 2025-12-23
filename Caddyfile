@@ -1,0 +1,19 @@
+# Caddy reverse proxy to unify Frontend and Backend under one port
+# Serves UI at / and proxies API at /api/*
+
+:5000 {
+  # Frontend UI
+  handle {
+    reverse_proxy 127.0.0.1:5001
+  }
+
+  # Backend API
+  handle_path /api/* {
+    reverse_proxy 127.0.0.1:5000
+  }
+
+  # Health check passthrough
+  handle_path /api/health {
+    reverse_proxy 127.0.0.1:5000
+  }
+}
